@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Rockfall Predictor</title>
+    <!-- Use Inter font from Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1a202c;
+            color: #e2e8f0;
+        }
+        .ai-card {
+            background-color: #2d3748;
+        }
+        .loading-spinner {
+            border-top-color: #3182ce;
+            border-right-color: #3182ce;
+        }
+        .pulse-animation {
+            animation: pulse-border 1.5s infinite;
+        }
+        @keyframes pulse-border {
+            0% {
+                box-shadow: 0 0 0 0 rgba(49, 130, 206, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 10px rgba(49, 130, 206, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(49, 130, 206, 0);
+            }
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <!-- Main Container Card -->
+    <div class="ai-card p-6 md:p-8 rounded-xl shadow-2xl w-full max-w-2xl transform transition-all duration-300">
+
+        <!-- Header -->
+        <h1 class="text-3xl md:text-4xl font-bold text-white text-center mb-2">AI Rockfall Predictor</h1>
+        <p class="text-gray-400 text-center mb-8">Analyze geological data to predict rockfall risk.</p>
+
+        <!-- Input Section -->
+        <div class="space-y-6">
+
+            <!-- Slope Angle Input -->
+            <div>
+                <label for="slope" class="block text-gray-300 font-medium mb-2">Slope Angle (in degrees):</label>
+                <input type="number" id="slope" class="w-full p-3 rounded-lg bg-gray-600 border border-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-white" placeholder="e.g., 45" min="0" max="90">
+            </div>
+
+            <!-- Rainfall Input -->
+            <div>
+                <label for="rainfall" class="block text-gray-300 font-medium mb-2">Recent Rainfall (in mm):</label>
+                <input type="number" id="rainfall" class="w-full p-3 rounded-lg bg-gray-600 border border-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-white" placeholder="e.g., 50">
+            </div>
+
+            <!-- Geological Stability Select -->
+            <div>
+                <label for="geology" class="block text-gray-300 font-medium mb-2">Geological Stability:</label>
+                <select id="geology" class="w-full p-3 rounded-lg bg-gray-600 border border-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-white">
+                    <option value="low">Low</option>
+                    <option value="moderate">Moderate</option>
+                    <option value="high">High</option>
+                </select>
+            </div>
+
+            <!-- Notes Textarea -->
+            <div>
+                <label for="notes" class="block text-gray-300 font-medium mb-2">Additional Notes:</label>
+                <textarea id="notes" rows="4" class="w-full p-3 rounded-lg bg-gray-600 border border-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 text-white" placeholder="e.g., 'Recent seismic activity detected.'"></textarea>
+            </div>
+        </div>
+
+        <!-- Buttons -->
+        <div class="mt-8 flex flex-col md:flex-row gap-4">
+            <button id="predict-btn" class="w-full py-3 px-6 bg-blue-600 text-white font-bold rounded-lg shadow-lg hover:bg-blue-700 transition duration-300 transform hover:scale-105">Predict Risk ✨</button>
+            <button id="reset-btn" class="w-full py-3 px-6 bg-gray-600 text-gray-200 font-bold rounded-lg shadow-lg hover:bg-gray-700 transition duration-300 transform hover:scale-105">Reset</button>
+        </div>
+
+        <!-- Prediction Result Section -->
+        <div id="result-section" class="mt-8 hidden">
+            <!-- Loading State -->
+            <div id="loading" class="flex flex-col items-center justify-center space-y-4">
+                <div class="loading-spinner w-12 h-12 rounded-full animate-spin border-4 border-gray-400"></div>
+                <span id="loading-text" class="text-lg text-gray-400">Predicting...</span>
+            </div>
+
+            <!-- Result State -->
+            <div id="result" class="text-center space-y-4 hidden">
+                <h2 class="text-2xl font-semibold">Prediction Result</h2>
+                <div id="risk-display" class="py-4 px-6 rounded-lg text-white font-bold text-xl"></div>
+                
+                <div id="explanation-container" class="text-left space-y-2 mt-4">
+                    <h3 class="text-xl font-medium text-gray-200">Detailed Analysis</h3>
+                    <p id="explanation" class="text-gray-300 leading-relaxed"></p>
+                </div>
+
+                <div id="mitigation-container" class="text-left space-y-2 mt-6">
+                    <h3 class="text-xl font-medium text-gray-200">Suggested Mitigation Strategies</h3>
+                    <ul id="mitigation-list" class="list-disc list-inside text-gray-300"></ul>
+                </div>
+
+                 <div id="citation-container" class="text-left space-y-2 mt-6 hidden">
+                    <h3 class="text-lg font-medium text-gray-400">Sources</h3>
+                    <ul id="citation-list" class="text-gray-500 text-sm italic"></ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Modal/Message Box for no-alert() -->
+    <div id="custom-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center z-50 hidden">
+        <div class="bg-gray-700 p-6 rounded-lg shadow-xl w-full max-w-sm text-center transform transition-all duration-300 scale-95 opacity-0">
+            <h3 class="text-white text-xl font-bold mb-4">Input Required</h3>
+            <p id="modal-message" class="text-gray-300 mb-6">Please fill in all input fields to get a prediction.</p>
+            <button id="modal-close" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition duration-300">OK</button>
+        </div>
+    </div>
+
+    <script>
+        // DOM Elements
+        const slopeInput = document.getElementById('slope');
+        const rainfallInput = document.getElementById('rainfall');
+        const geologySelect = document.getElementById('geology');
+        const notesInput = document.getElementById('notes');
+        const predictBtn = document.getElementById('predict-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        const resultSection = document.getElementById('result-section');
+        const loadingSpinner = document.getElementById('loading');
+        const loadingText = document.getElementById('loading-text');
+        const resultDiv = document.getElementById('result');
+        const riskDisplay = document.getElementById('risk-display');
+        const explanationP = document.getElementById('explanation');
+        const mitigationList = document.getElementById('mitigation-list');
+        const citationContainer = document.getElementById('citation-container');
+        const citationList = document.getElementById('citation-list');
+        const customModal = document.getElementById('custom-modal');
+        const modalMessage = document.getElementById('modal-message');
+        const modalCloseBtn = document.getElementById('modal-close');
+
+        // Function to show the custom modal
+        function showModal(message) {
+            modalMessage.textContent = message;
+            customModal.classList.remove('hidden');
+            customModal.querySelector('div').classList.remove('scale-95', 'opacity-0');
+            customModal.querySelector('div').classList.add('scale-100', 'opacity-100');
+        }
+
+        // Function to hide the custom modal
+        function hideModal() {
+            customModal.querySelector('div').classList.remove('scale-100', 'opacity-100');
+            customModal.querySelector('div').classList.add('scale-95', 'opacity-0');
+            setTimeout(() => {
+                customModal.classList.add('hidden');
+            }, 300); // Wait for transition to finish
+        }
+
+        // The Gemini API call for generating the explanation and mitigation strategies
+        async function getGeminiResponse(riskLevel, slope, rainfall, geology, notes) {
+            const apiKey = ""; // Canvas will provide this in runtime
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+            const systemPrompt = `You are an expert geotechnical and geological engineer. Your task is to provide a detailed, scientific explanation of the rockfall risk and suggest actionable mitigation strategies. Use a professional, clear, and informative tone.`;
+
+            const userQuery = `Based on the following data, explain the rockfall risk and provide a numbered list of 3-5 specific, professional mitigation strategies.
+            - Risk Level: ${riskLevel}
+            - Slope Angle: ${slope} degrees
+            - Recent Rainfall: ${rainfall} mm
+            - Geological Stability: ${geology}
+            - Additional Notes: ${notes || 'None provided.'}`;
+
+            const payload = {
+                contents: [{ parts: [{ text: userQuery }] }],
+                tools: [{ "google_search": {} }],
+                systemInstruction: {
+                    parts: [{ text: systemPrompt }]
+                },
+            };
+
+            let response;
+            try {
+                response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`API call failed with status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                const candidate = result.candidates?.[0];
+
+                if (candidate && candidate.content?.parts?.[0]?.text) {
+                    const text = candidate.content.parts[0].text;
+                    let sources = [];
+                    const groundingMetadata = candidate.groundingMetadata;
+                    if (groundingMetadata && groundingMetadata.groundingAttributions) {
+                        sources = groundingMetadata.groundingAttributions
+                            .map(attribution => ({
+                                uri: attribution.web?.uri,
+                                title: attribution.web?.title,
+                            }))
+                            .filter(source => source.uri && source.title);
+                    }
+                    return { text, sources };
+                } else {
+                    return { text: "No explanation could be generated at this time.", sources: [] };
+                }
+            } catch (error) {
+                console.error("Error calling Gemini API:", error);
+                return { text: "An error occurred while generating the analysis. Please try again.", sources: [] };
+            }
+        }
+
+        // Handle prediction logic
+        predictBtn.addEventListener('click', async () => {
+            const slope = parseFloat(slopeInput.value);
+            const rainfall = parseFloat(rainfallInput.value);
+            const geology = geologySelect.value;
+            const notes = notesInput.value;
+
+            // Simple validation to ensure all fields are filled
+            if (isNaN(slope) || isNaN(rainfall) || slope === null || rainfall === null) {
+                showModal('Please enter a valid number for slope angle and rainfall.');
+                return;
+            }
+
+            // Show loading state
+            resultSection.classList.remove('hidden');
+            loadingSpinner.classList.remove('hidden');
+            resultDiv.classList.add('hidden');
+            loadingText.textContent = "Analyzing input data...";
+            
+            // --- Step 1: Simulated Risk Prediction ---
+            let riskScore = 0;
+            if (slope > 60) riskScore += 3;
+            else if (slope > 45) riskScore += 2;
+            else riskScore += 1;
+            
+            if (rainfall > 100) riskScore += 3;
+            else if (rainfall > 50) riskScore += 2;
+
+            if (geology === 'low') riskScore += 3;
+            else if (geology === 'moderate') riskScore += 2;
+            else riskScore += 1;
+            
+            let riskLevel;
+            if (riskScore >= 6) {
+                riskLevel = "High";
+                riskDisplay.textContent = "High Risk";
+                riskDisplay.style.backgroundColor = "#c53030";
+            } else if (riskScore >= 4) {
+                riskLevel = "Moderate";
+                riskDisplay.textContent = "Moderate Risk";
+                riskDisplay.style.backgroundColor = "#d69e2e";
+            } else {
+                riskLevel = "Low";
+                riskDisplay.textContent = "Low Risk";
+                riskDisplay.style.backgroundColor = "#2f855a";
+            }
+
+            // Hide the initial loading spinner and show the result container
+            loadingSpinner.classList.add('hidden');
+            resultDiv.classList.remove('hidden');
+            loadingText.textContent = "";
+
+            // --- Step 2: Use Gemini API to get detailed analysis and mitigation strategies ---
+            loadingText.textContent = "Generating detailed analysis and suggestions... ✨";
+            loadingSpinner.classList.remove('hidden');
+            
+            const { text, sources } = await getGeminiResponse(riskLevel, slope, rainfall, geology, notes);
+            
+            loadingSpinner.classList.add('hidden');
+            loadingText.textContent = "";
+
+            // Parse the response to split explanation and mitigation points
+            const textParts = text.split(/\n\d+\.\s/);
+            const rawExplanation = textParts[0];
+            const mitigationPoints = textParts.slice(1);
+
+            // Update DOM with API response
+            explanationP.textContent = rawExplanation.trim();
+
+            mitigationList.innerHTML = '';
+            if (mitigationPoints.length > 0) {
+                mitigationPoints.forEach(point => {
+                    const li = document.createElement('li');
+                    li.textContent = point.trim();
+                    mitigationList.appendChild(li);
+                });
+            } else {
+                const li = document.createElement('li');
+                li.textContent = "No specific mitigation strategies could be generated at this time.";
+                mitigationList.appendChild(li);
+            }
+
+            // Display citations if they exist
+            citationList.innerHTML = '';
+            if (sources.length > 0) {
+                citationContainer.classList.remove('hidden');
+                sources.forEach(source => {
+                    const li = document.createElement('li');
+                    const a = document.createElement('a');
+                    a.href = source.uri;
+                    a.textContent = source.title;
+                    a.target = "_blank";
+                    a.className = "text-blue-400 hover:underline";
+                    li.appendChild(a);
+                    citationList.appendChild(li);
+                });
+            } else {
+                citationContainer.classList.add('hidden');
+            }
+        });
+
+        // Handle reset button
+        resetBtn.addEventListener('click', () => {
+            slopeInput.value = '';
+            rainfallInput.value = '';
+            geologySelect.value = 'low';
+            notesInput.value = '';
+            resultSection.classList.add('hidden');
+            explanationP.textContent = '';
+            mitigationList.innerHTML = '';
+            citationList.innerHTML = '';
+            citationContainer.classList.add('hidden');
+        });
+
+        // Handle modal close button
+        modalCloseBtn.addEventListener('click', hideModal);
+
+    </script>
+</body>
+</html>
